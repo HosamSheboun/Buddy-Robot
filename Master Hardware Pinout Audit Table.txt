@@ -1,0 +1,62 @@
+Master Hardware Pinout Audit Table
+
+Component		Component Pin			ESP32 GPIO		Pin Type & Capability			Hardware Status / Notes
+
+ST7735 Display		SDA / MOSI			GPIO 23			Output (Hardware SPI MOSI)		OK (Dedicated SPI)
+			SCK / SCL			GPIO 18			Output (Hardware SPI SCK)		OK (Dedicated SPI)
+			CS				GPIO 15			Output					OK
+			RESET				GPIO 4			Output					OK
+			A0 / DC				GPIO 2			Output (Boot Pin - pulled LOW)		OK (Internal pull-down, safe for DC)
+			LED / LITE			3.3V or 5V		Power					OK (Constant backlight)
+			VCC / GND			5V / GND		Power					OK
+
+L298N Motors		IN1				GPIO 16			Output					OK
+			IN2				GPIO 17			Output					OK
+			IN3				GPIO 26			Output					OK
+			IN4				GPIO 27			Output					OK
+			ENA / ENB			Keep Jumpers ON		Power / Logic				OK (Runs motors at 100% full scale speed)
+
+HC-SR04 Ultrasonic	Trig				GPIO 13			Output					Used by Buddy_Robot sketch
+			Echo				GPIO 35			Input Only				Use voltage divider; avoids GPIO 12 boot strap
+
+Buzzer			Signal (+)			GPIO 14			Output					OK
+
+RGB LED			Red				GPIO 32			Output					Use a 220-330 ohm series resistor
+			Green				GPIO 33			Output					Use a 220-330 ohm series resistor
+			Blue				GPIO 25			Output					Use a 220-330 ohm series resistor
+			Common				GND				Power / Ground				Current sketch assumes common-cathode LED
+
+ESP32-CAM Network	CAM Wi-Fi				Main ESP32 Wi-Fi		Same local network			CAM serves /capture; main fetches snapshots
+			CAM GND				Main ESP32 GND		Common ground			Only required if other wired peripherals share power/signals
+
+
+--Critical Pre-Wiring Checks & Potential Pitfalls
+1. ESP32-CAM network access
+
+-Both boards join the same local Wi-Fi network. The CAM Serial Monitor prints its IP address; set CAMERA_SNAPSHOT_URL to http://CAM_IP/capture in Buddy_Robot/secrets.h.
+
+-Do not expose the camera HTTP server to the public internet. It has no authentication and is intended only for a trusted local network.
+
+
+2. Ultrasonic Echo Voltage Level
+
+-The Issue: The HC-SR04 output on its Echo pin is 5V logic, but ESP32 GPIO pins are not 5V tolerant. GPIO 12 is also a boot-strapping pin on the classic ESP32.
+
+-The Fix: Connect Echo through a divider to GPIO 35 (e.g., 1.8 kOhm from Echo to GPIO 35 and 3.3 kOhm from GPIO 35 to GND), or use a level-shifted 3.3V-compatible sensor.
+
+
+3. Common Ground Requirement
+
+-The Issue: If the L298N motor driver, main ESP32, ESP32-CAM, and battery pack do not share a ground connection, serial communication, sensor readings, and motor switching will produce erratic glitches or noise.
+
+-The Fix: Ensure a single heavy ground wire ties the GND of all components together.
+
+4. Firmware Coverage
+
+-The Buddy_Robot sketch reads the HC-SR04, fetches camera snapshots over local Wi-Fi, and sends the image and distance to Gemini. The CAM only serves snapshots. The L298N motors are wired but are not controlled by firmware.
+
+5. Credentials and interaction
+
+-Set Wi-Fi credentials in CAM/secrets.h and Buddy_Robot/secrets.h. Set the camera URL and Gemini API key in Buddy_Robot/secrets.h. Do not publish those files or share the API key.
+
+-To chat, open the main ESP32 Serial Monitor at 115200 baud, select a newline line ending, and type a message. Replies appear on the TFT and Serial Monitor. The buzzer can make tones but does not speak; a microphone/audio output is not included.
